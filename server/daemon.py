@@ -15,11 +15,12 @@ import time
 from calendar import timegm
 from struct import pack
 from time import strptime
+from hashlib import sha256
 
 import aiohttp
 
 from lib.util import int_to_varint, hex_to_bytes
-from lib.hash import hex_str_to_hash
+from lib.hash import hex_str_to_hash, Base58, hash160, double_sha256
 from aiorpcx import JSONRPC
 
 
@@ -238,6 +239,7 @@ class Daemon(object):
         '''Return the raw binary blocks with the given hex hashes.'''
         params_iterable = ((h, False) for h in hex_hashes)
         blocks = await self._send_vector('getblock', params_iterable)
+
         # Convert hex string to bytes
         return [hex_to_bytes(block) for block in blocks]
 
@@ -303,11 +305,11 @@ class DashDaemon(Daemon):
 
     async def masternode_broadcast(self, params):
         '''Broadcast a transaction to the network.'''
-        return await self._send_single('masternodebroadcast', params)
+        return await self._send_single('masternode', params)
 
     async def masternode_list(self, params ):
         '''Return the masternode status.'''
-        return await self._send_single('masternodelist', params)
+        return await self._send_single('masternode', params)
 
 
 class FakeEstimateFeeDaemon(Daemon):
@@ -322,7 +324,6 @@ class FakeEstimateFeeDaemon(Daemon):
         '''The minimum fee a low-priority tx must pay in order to be accepted
         to the daemon's memory pool.'''
         return self.coin.RELAY_FEE
-
 
 class LegacyRPCDaemon(Daemon):
     '''Handles connections to a daemon at the given URL.
@@ -381,3 +382,33 @@ class LegacyRPCDaemon(Daemon):
         if isinstance(t, int):
             return t
         return timegm(strptime(t, "%Y-%m-%d %H:%M:%S %Z"))
+
+
+
+class IonDaemon(LegacyRPCDaemon):
+
+    async def masternode_broadcast(self, params):
+        '''Broadcast a transaction to the network.'''
+        return await self._send_single('masternodebroadcast', params)
+
+    async def masternode_list(self, params ):
+        '''Return the masternode status.'''
+        return await self._send_single('masternode list', params)
+
+    async def estimatefee(self, params):
+        '''Return the fee estimate for the given parameters.'''
+        return self.coin.ESTIMATE_FEE
+
+    async def relayfee(self):
+        '''The minimum fee a low-priority tx must pay in order to be accepted
+        to the daemon's memory pool.'''
+        return self.coin.RELAY_FEE
+
+    # async def raw_blocks(self, hex_hashes):
+    #     '''Return the raw binary blocks with the given hex hashes.'''
+    #     params_iterable = ((h, False) for h in hex_hashes)
+    #     blocks = await self._send_vector('getblock', params_iterable)
+    #
+    #     # Convert hex string to bytes
+    #     return [block for block in blocks]
+

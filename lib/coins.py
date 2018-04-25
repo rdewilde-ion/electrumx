@@ -44,7 +44,7 @@ from lib.script import ScriptPubKey, OpCodes
 import lib.tx as lib_tx
 from server.block_processor import BlockProcessor
 import server.daemon as daemon
-from server.session import ElectrumX, DashElectrumX
+from server.session import ElectrumX, DashElectrumX, IonElectrumX
 
 
 Block = namedtuple("Block", "raw header transactions")
@@ -267,7 +267,7 @@ class Coin(object):
     @classmethod
     def block_header(cls, block, height):
         '''Returns the block header given a block and its height.'''
-        return block[:cls.static_header_len(height)]
+        return [cls.static_header_len(height)]
 
     @classmethod
     def block(cls, raw_block, height):
@@ -1592,3 +1592,84 @@ class Axe(Dash):
         '''
         import x11_hash
         return x11_hash.getPoWHash(header)
+
+
+# Source: https://github.com/dashpay/dash
+class Ion(Coin):
+    NAME = "Ion"
+    SHORTNAME = "ION"
+    NET = "mainnet"
+    XPUB_VERBYTES = bytes.fromhex("0488b21e")
+    XPRV_VERBYTES = bytes.fromhex("0488ade4")
+    GENESIS_HASH = ('0000004cf5ffbf2e31a9aa07c86298ef'
+                    'b01a30b8911b80af7473d1114715084b')
+    P2PKH_VERBYTE = bytes.fromhex("67")
+    P2SH_VERBYTES = [bytes.fromhex("58")]
+    WIF_BYTE = bytes.fromhex("99")
+    ESTIMATE_FEE = 0.0001
+    RELAY_FEE = 0.00001
+    TX_COUNT_HEIGHT = 590000
+    TX_COUNT = 1180000
+    TX_PER_BLOCK = 4
+    REORG_LIMITS = 100
+    RPC_PORT = 51003
+    TCP_PORT = 51001
+    SSL_PORT = 51002
+    PEERS = [
+        # 'main.electrum.ionomy.nl s t',
+    ]
+    PEER_DEFAULT_PORTS = {'t': '51001', 's': '51002'}
+    DESERIALIZER = lib_tx.DeserializerTxTime
+    SESSIONCLS = IonElectrumX
+    DAEMON = daemon.IonDaemon
+
+    @classmethod
+    def header_hash(cls, header):
+        '''Given a header return hash'''
+        return double_sha256(header[:cls.BASIC_HEADER_SIZE])
+
+    @classmethod
+    def block_header(cls, block, height):
+        return block[:cls.BASIC_HEADER_SIZE]
+
+    # @classmethod
+    # def block(cls, raw_block, height):
+    #     '''Return a Block namedtuple given a raw block and its height.'''
+    #     if height > 0:
+    #         return super().block(raw_block, height)
+    #     else:
+    #         return Block(raw_block, cls.block_header(raw_block, height), [])
+
+
+class IonTestnet(Dash):
+    SHORTNAME = "tION"
+    NET = "testnet"
+    XPUB_VERBYTES = bytes.fromhex("043587cf")
+    XPRV_VERBYTES = bytes.fromhex("04358391")
+    GENESIS_HASH = ('0000002bed128b6b2a62bd8edd4e6f8a'
+                    '414eac38e256aa0194adb8c93fe18132')
+    P2PKH_VERBYTE = bytes.fromhex("57")
+    P2SH_VERBYTES = [bytes.fromhex("b4")]
+    WIF_BYTE = bytes.fromhex("ef")
+    # TX_COUNT_HEIGHT = 580000
+    # TX_COUNT = 132681
+    # TX_PER_BLOCK = 2
+    REORG_LIMIT = 100
+    RPC_PORT = 12175
+    PEER_DEFAULT_PORTS = {'t': '51001', 's': '51002'}
+    PEERS = [
+        'electrum.dash.siampm.com s t',
+    ]
+
+    @classmethod
+    def header_hash(cls, header):
+        '''Given a header return the hash.'''
+        return cls.HEADER_HASH(header)
+
+    @classmethod
+    def block(cls, raw_block, height):
+        '''Return a Block namedtuple given a raw block and its height.'''
+        if height > 0:
+            return super().block(raw_block, height)
+        else:
+            return Block(raw_block, cls.block_header(raw_block, height), [])

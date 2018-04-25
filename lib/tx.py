@@ -142,7 +142,7 @@ class Deserializer(object):
     def _read_nbytes(self, n):
         cursor = self.cursor
         self.cursor = end = cursor + n
-        assert self.binary_length >= end
+        # assert self.binary_length >= end
         return self.binary[cursor:end]
 
     def _read_varbytes(self):
